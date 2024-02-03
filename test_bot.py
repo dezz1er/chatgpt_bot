@@ -1,72 +1,22 @@
-import asyncio
-import logging
-from aiogram import Bot, Dispatcher, types
-from aiogram.filters import Command
-import g4f
-
-# Включите логирование
-logging.basicConfig(level=logging.INFO)
-
-# Инициализация бота
-API_TOKEN = '6902932893:AAGHyRXDgRCCZdl_UPuI_1W2kafdUrh3Dwk'
-bot = Bot(token=API_TOKEN)
-dp = Dispatcher()
-
-# Словарь для хранения истории разговоров
-conversation_history = {}
+import openai
 
 
-# Функция для обрезки истории разговора
-def trim_history(history, max_length=4096):
-    current_length = sum(len(message["content"]) for message in history)
-    while history and current_length > max_length:
-        removed_message = history.pop(0)
-        current_length -= len(removed_message["content"])
-    return history
+openai.api_key = 'sk-2AAszqIqRyl6KXxmC908BfB27fFb45C89714Ed8f0e22386a'
+openai.api_base = "https://neuroapi.host/v1"
 
 
-@dp.message(Command('clear'))
-async def process_clear_command(message: types.Message):
-    user_id = message.from_user.id
-    conversation_history[user_id] = []
-    await message.reply("История диалога очищена.")
+def ask(messages: list) -> str:
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=messages
+    )
+    print(response['choices'][0]['message']['content'])
+    return response['choices'][0]['message']['content']
 
 
-# Обработчик для каждого нового сообщения
-@dp.message()
-async def send_welcome(message: types.Message):
-    user_id = message.from_user.id
-    user_input = message.text
-
-    if user_id not in conversation_history:
-        conversation_history[user_id] = []
-
-    conversation_history[user_id].append({"role": "user", "content": user_input})
-    conversation_history[user_id] = trim_history(conversation_history[user_id])
-
-    chat_history = conversation_history[user_id]
-
-    try:
-        response = await g4f.ChatCompletion.create_async(
-            model=g4f.models.default,
-            messages=chat_history,
-            provider=g4f.Provider.GeekGpt,
-        )
-        chat_gpt_response = response
-    except Exception as e:
-        print(f"{g4f.Provider.GeekGpt.__name__}:", e)
-        chat_gpt_response = "Извините, произошла ошибка."
-
-    conversation_history[user_id].append({"role": "assistant", "content": chat_gpt_response})
-    print(conversation_history)
-    length = sum(len(message["content"]) for message in conversation_history[user_id])
-    print(length)
-    await message.answer(chat_gpt_response)
-
-
-async def main():
-    await dp.start_polling(bot)
-
-# Запуск бота
-if __name__ == '__main__':
-    asyncio.run(main())
+messages = []
+while True:
+    question = input()
+    messages.append({"role": "user", "content": question})
+    answer = ask(messages=messages)
+    messages.append({"role": "assistant", "content": answer})

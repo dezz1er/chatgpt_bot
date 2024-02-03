@@ -1,8 +1,8 @@
-from aiogram import F, Router, flags, types
+from aiogram import F, Router, flags
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
-from sqlalchemy import exists, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import kb
@@ -53,6 +53,11 @@ async def input_text_prompt(clbck: CallbackQuery, state: FSMContext):
     await clbck.message.answer(text.gen_exit, reply_markup=kb.exit_kb)
 
 
+@router.callback_query(F.data == "help")
+async def send_help(callback: CallbackQuery):
+    await callback.message.answer(text.help, reply_markup=kb.iexit_kb)
+
+
 @router.message(Gen.text_prompt)
 @flags.chat_action("typing")
 async def generate_text(msg: Message, state: FSMContext):
@@ -84,6 +89,11 @@ async def generate_image(msg: Message, state: FSMContext):
     await mesg.delete()
     await mesg.answer_photo(photo=img_res[0], caption=text.img_watermark)
 
+
+@router.message()
+async def default_message_handler(msg: Message):
+    await msg.answer("Простите, я не уверен, как на это реагировать. \
+                     Пожалуйста, воспользуйтесь меню для доступа к командам.")
 
 # @router.message(Command('clear'))
 # async def process_clear_command(message: types.Message):
