@@ -1,4 +1,4 @@
-from aiogram import F, Router, flags
+from aiogram import F, Router, flags, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
@@ -42,6 +42,7 @@ async def start_handler(msg: Message, session: AsyncSession):
 @router.message(F.text == "Меню")
 @router.message(F.text == "Выйти в меню")
 @router.message(F.text == "◀️ Выйти в меню")
+@router.message(Command("menu"))
 async def menu(msg: Message):
     await msg.answer(text.menu, reply_markup=kb.menu)
 
@@ -50,12 +51,12 @@ async def menu(msg: Message):
 async def input_text_prompt(clbck: CallbackQuery, state: FSMContext):
     await state.set_state(Gen.text_prompt)
     await clbck.message.edit_text(text.gen_text)
-    await clbck.message.answer(text.gen_exit, reply_markup=kb.exit_kb)
+    await clbck.message.answer(text.gen_exit, reply_markup=kb.iexit_kb)
 
 
 @router.callback_query(F.data == "help")
 async def send_help(callback: CallbackQuery):
-    await callback.message.answer(text.help, reply_markup=kb.iexit_kb)
+    await callback.message.answer(text.help)
 
 
 @router.message(Gen.text_prompt)
@@ -66,16 +67,16 @@ async def generate_text(msg: Message, state: FSMContext):
     mesg = await msg.answer(text.gen_wait)
     res = await utils.generate_text(prompt, user_id)
     if not res:
-        return await mesg.edit_text(text.gen_error, reply_markup=kb.iexit_kb)
-    await mesg.edit_text(res + text.text_watermark,
-                         disable_web_page_preview=True)
+        return await mesg.edit_text(text.gen_error)
+    await mesg.edit_text(res, disable_web_page_preview=True,
+                         reply_markup=kb.iexit_kb)
 
 
 @router.callback_query(F.data == "generate_image")
 async def input_image_prompt(clbck: CallbackQuery, state: FSMContext):
     await state.set_state(Gen.img_prompt)
     await clbck.message.edit_text(text.gen_image)
-    await clbck.message.answer(text.gen_exit, reply_markup=kb.exit_kb)
+    await clbck.message.answer(text.gen_exit, reply_markup=kb.iexit_kb)
 
 
 @router.message(Gen.img_prompt)
@@ -85,18 +86,20 @@ async def generate_image(msg: Message, state: FSMContext):
     mesg = await msg.answer(text.gen_wait)
     img_res = await utils.generate_image(prompt)
     if len(img_res) == 0:
-        return await mesg.edit_text(text.gen_error, reply_markup=kb.iexit_kb)
+        return await mesg.edit_text(text.gen_error)
     await mesg.delete()
-    await mesg.answer_photo(photo=img_res[0], caption=text.img_watermark)
+    await mesg.answer_photo(photo=img_res[0], reply_markup=kb.iexit_kb)
 
 
 @router.message()
 async def default_message_handler(msg: Message):
     await msg.answer("Простите, я не уверен, как на это реагировать. \
-                     Пожалуйста, воспользуйтесь меню для доступа к командам.")
+                     Пожалуйста, воспользуйтесь меню для доступа к командам.",
+                     reply_markup=kb.iexit_kb)
 
-# @router.message(Command('clear'))
-# async def process_clear_command(message: types.Message):
-#     user_id = message.from_user.id
-#     conversation_history[user_id] = []
-#     await message.reply("История диалога очищена.")
+
+@router.message(Command("clear"))
+async def process_clear_command(message: types.Message):
+    user_id = message.from_user.id
+    utils.clear_chat_history(user_id)
+    await message.reply("История диалога очищена.")

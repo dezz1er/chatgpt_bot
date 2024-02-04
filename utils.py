@@ -1,5 +1,4 @@
 import logging
-import g4f
 from bot import redis
 import json
 
@@ -30,7 +29,7 @@ async def generate_text(prompt, user_id: str) -> str:
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
-            messages=prompt
+            messages=chat_history
         )
         chat_gpt_response = response['choices'][0]['message']['content']
     except Exception as e:
@@ -56,3 +55,8 @@ async def generate_image(prompt, n=1, size="1024x1024") -> list:
         logging.error(e)
         return []
     return urls
+
+
+async def clear_chat_history(user_id: str):
+    await redis.delete(user_id)
+    logging.info(f"Chat history for user {user_id} has been cleared.")
